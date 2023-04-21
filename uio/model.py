@@ -414,21 +414,21 @@ class UnifiedIOModel(nn.Module):
         text_type = batch['text_encoder_inputs'].dtype
         bs = text_encoder_inputs.shape[0]
 
-        _, variables_with_cache = self.module.apply(
-            {'params': params},
-            jnp.ones_like(text_encoder_inputs),
-            jnp.ones_like(image_encoder_inputs),
-            jnp.ones((bs, text_length), text_type),
-            jnp.ones((bs, 256, 256, 3), image_encoder_inputs.dtype),
-            jnp.ones((bs, text_length), text_type),
-            decode=True,
-            enable_dropout=False,
-            vae_decode=False,
-            cache_text_length=text_length,
-            cache_image_length=image_length,
-            mutable=['cache'])
+        # _, variables_with_cache = self.module.apply(
+        #     {'params': params},
+        #     jnp.ones_like(text_encoder_inputs),
+        #     jnp.ones_like(image_encoder_inputs),
+        #     jnp.ones((bs, text_length), text_type),
+        #     jnp.ones((bs, 256, 256, 3), image_encoder_inputs.dtype),
+        #     jnp.ones((bs, text_length), text_type),
+        #     decode=True,
+        #     enable_dropout=False,
+        #     vae_decode=False,
+        #     cache_text_length=text_length,
+        #     cache_image_length=image_length,
+        #     mutable=['cache'])
 
-        cache = variables_with_cache['cache']
+        # cache = variables_with_cache['cache']
 
         # Prepare transformer fast-decoder call for beam search: for beam search, we
         # need to set up our decoder model to handle a batch size equal to

@@ -720,7 +720,7 @@ class Embed(nn.Module):
         if self.one_hot:
             iota = lax.iota(jnp.int32, self.num_embeddings)
             one_hot = jnp.array(inputs[..., jnp.newaxis] == iota, dtype=self.dtype)
-            output = jnp.dot(one_hot, jnp.asarray(self.embedding, self.dtype))
+            output = jnp.dot(one_hot, jnp.asarray(self.embedding, self.dtype), precision=lax.Precision.HIGHEST)
         else:
             output = jnp.asarray(self.embedding, self.dtype)[inputs]
             output = with_sharding_constraint(output, ('batch', 'length', 'embed'))

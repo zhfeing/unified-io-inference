@@ -560,6 +560,7 @@ class Encoder(nn.Module):
                                                             'uniform'),
             name='relpos_bias')
 
+        # jnp.savez("input", text=text_encoder_inputs, img=image_encoder_inputs)
         # do the image encoding.
         if image_encoder_inputs.ndim == 4:
             img_emb = layers.space_to_depth(image_encoder_inputs, spatial_block_size=cfg.image_patch_size)
@@ -567,7 +568,7 @@ class Encoder(nn.Module):
             img_emb = image_encoder_inputs
 
         txt_pos_emb = self.positon_embedding(txt_position_ids)
-        img_pos_emb = self.positon_embedding(img_position_ids+cfg.encoder_max_text_length)
+        img_pos_emb = self.positon_embedding(img_position_ids + cfg.encoder_max_text_length)
 
         if (image_encoder_inputs.ndim == 4 and
             img_emb.shape[1] != cfg.encoder_max_image_length and
@@ -595,19 +596,31 @@ class Encoder(nn.Module):
         txt_emb = self.shared_embedding(text_encoder_inputs.astype('int32'))
 
         txt_segments = jnp.zeros(txt_emb.shape[1], dtype=jnp.int32)[None, ...]
-        img_segments = jnp.ones(img_emb.shape[1],  dtype=jnp.int32)[None, ...]
+        img_segments = jnp.ones(img_emb.shape[1], dtype=jnp.int32)[None, ...]
 
-        txt_emb += self.segment_embedding(txt_segments)
-        img_emb += self.segment_embedding(img_segments)
+        txt_seg_emb = self.segment_embedding(txt_segments)
+        img_seg_emb = self.segment_embedding(img_segments)
 
-        txt_emb += txt_pos_emb
-        img_emb += img_pos_emb
+        txt_emb += txt_pos_emb + txt_seg_emb
+        img_emb += img_pos_emb + img_seg_emb
+
+        # jnp.savez(
+        #     "before_ln",
+        #     img_emb=img_emb,
+        #     txt_emb=txt_emb
+        # )
 
         txt_emb = layers.LayerNorm(
             dtype=cfg.dtype, name='txt_emb_pre_ln')(txt_emb)
 
         img_emb = layers.LayerNorm(
             dtype=cfg.dtype, name='img_emb_pre_ln')(img_emb)
+
+        # jnp.savez(
+        #     "after_ln",
+        #     img_emb=img_emb,
+        #     txt_emb=txt_emb
+        # )
 
         position_embedding = jnp.concatenate([txt_pos_emb, img_pos_emb], axis=1)
 
@@ -631,6 +644,14 @@ class Encoder(nn.Module):
 
         pos_scaling = float(cfg.emb_dim / cfg.num_heads) ** -0.5
         abs_pos_bias = jnp.einsum('bqhd,bkhd->bhqk', pos_q, pos_k) * pos_scaling
+
+        # jnp.savez(
+        #     "abs_pos_bias",
+        #     position_embedding=position_embedding,
+        #     pos_q=pos_q,
+        #     pos_k=pos_k,
+        #     abs_pos_bias=abs_pos_bias
+        # )
 
         x = jnp.concatenate([txt_emb, img_emb], axis=1)
         x = nn.Dropout(
@@ -863,6 +884,7 @@ class Transformer(nn.Module):
         encoder_masks = jnp.concatenate([text_encoder_masks, image_encoder_masks], axis=1)
         encoder_attn_masks = layers.make_attention_mask(
             encoder_masks, encoder_masks, dtype=cfg.dtype)
+        # jnp.save("encoder_attn_mask", encoder_attn_masks)
 
         return self.encoder(
             text_encoder_inputs,
